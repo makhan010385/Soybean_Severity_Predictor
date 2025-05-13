@@ -22,7 +22,10 @@ based on weather conditions and selected variety, using regression models derive
 # Sidebar inputs
 st.sidebar.header("Input Parameters")
 
-variety_list = [col for col in df.columns if col.startswith("JS") or col in ["Shivalik", "Punjab1", "PK -472", "Bragg", "Monetta", "NRC-7", "PK-262", "Gaurav"]]
+# Clean column names for consistency
+df.columns = df.columns.str.strip()
+
+variety_list = [col for col in df.columns if col.startswith("JS") or col in ["Shivalik", "Punjab1", "PK-472", "Bragg", "Monetta", "NRC-7", "PK-262", "Gaurav"]]
 selected_variety = st.sidebar.selectbox("Select Soybean Variety", variety_list)
 
 mean_rh = st.sidebar.slider("Mean Relative Humidity (%)", 50.0, 100.0, 85.0)
@@ -58,17 +61,21 @@ st.metric(label="Yellow Mosaic Virus (YMV)", value=f"{severity_ymv} %")
 
 # Display filtered real data for selected variety
 st.subheader(f"Historical Records for {selected_variety}")
-filtered = df[(df[selected_variety].notna()) & (df[selected_variety] > 0)]
-st.dataframe(filtered[["Year", "SMW", selected_variety, "Max_Temp", "Min_Temp", "Rainfall", "Max_Humidity", "Min_Humidity"]].reset_index(drop=True))
+try:
+    df[selected_variety] = pd.to_numeric(df[selected_variety], errors='coerce')
+    filtered = df[df[selected_variety].notna() & (df[selected_variety].astype(float) > 0)]
+    st.dataframe(filtered[["Year", "SMW", selected_variety, "Max_Temp", "Min_Temp", "Rainfall", "Max_Humidity", "Min_Humidity"]].reset_index(drop=True))
 
-# Plot historical PDI for selected variety
-st.subheader(f"{selected_variety} Weekly PDI Over Time")
-fig, ax = plt.subplots()
-filtered.groupby("SMW")[selected_variety].mean().plot(ax=ax, marker='o')
-ax.set_xlabel("Standard Meteorological Week (SMW)")
-ax.set_ylabel("Average PDI")
-ax.set_title(f"{selected_variety} Disease Progression")
-st.pyplot(fig)
+    # Plot historical PDI for selected variety
+    st.subheader(f"{selected_variety} Weekly PDI Over Time")
+    fig, ax = plt.subplots()
+    filtered.groupby("SMW")[selected_variety].mean().plot(ax=ax, marker='o')
+    ax.set_xlabel("Standard Meteorological Week (SMW)")
+    ax.set_ylabel("Average PDI")
+    ax.set_title(f"{selected_variety} Disease Progression")
+    st.pyplot(fig)
+except Exception as e:
+    st.warning(f"Unable to display historical data for {selected_variety}: {e}")
 
 # Note
 st.markdown("**Note:** This model uses simplified regression equations for different soybean diseases and is intended for indicative forecasting only.")
